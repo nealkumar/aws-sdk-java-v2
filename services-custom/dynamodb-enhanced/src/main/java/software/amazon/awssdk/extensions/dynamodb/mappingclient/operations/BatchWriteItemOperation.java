@@ -15,6 +15,7 @@
 
 package software.amazon.awssdk.extensions.dynamodb.mappingclient.operations;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,11 +49,17 @@ public class BatchWriteItemOperation implements DatabaseOperation<BatchWriteItem
 
     @Override
     public BatchWriteItemRequest generateRequest(MapperExtension mapperExtension) {
-        Map<String, Collection<WriteRequest>> requestItems = new HashMap<>();
-        request.writeBatches().forEach(writeBatch -> writeBatch.addWriteRequestsToMap(requestItems));
+        Map<String, Collection<WriteRequest>> allRequestItems = new HashMap<>();
+
+        request.writeBatches().forEach(writeBatch -> {
+            Collection<WriteRequest> writeRequestsForTable = allRequestItems.computeIfAbsent(
+                writeBatch.tableName(),
+                ignored -> new ArrayList<>());
+            writeRequestsForTable.addAll(writeBatch.writeRequests());
+        });
 
         return BatchWriteItemRequest.builder()
-                                    .requestItems(Collections.unmodifiableMap(requestItems))
+                                    .requestItems(Collections.unmodifiableMap(allRequestItems))
                                     .build();
     }
 
